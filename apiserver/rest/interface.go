@@ -17,6 +17,11 @@ type Scoper rest.Scoper
 
 type NameGenerator names.NameGenerator
 
+// TableConverter must determine from passed context passed to ConvertToTable.
+type TableConvertor interface {
+	ConvertToTable(ctx context.Context, object runtime.Object, tableOptions runtime.Object) (*metav1.Table, error)
+}
+
 // AllowCreateOnUpdater implements a subset of rest.RESTUpdateStrategy and
 // it can be used by objects to override DefaultStrategy behaviour.
 type AllowCreateOnUpdater interface {
