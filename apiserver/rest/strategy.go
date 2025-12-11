@@ -5,18 +5,43 @@ package rest
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"time"
 
 	"go.opendefense.cloud/kit/apiserver/resource"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/names"
 )
+
+// errNotAcceptable indicates the resource doesn't support Table conversion.
+type errNotAcceptable struct {
+	resource schema.GroupResource
+}
+
+func (e errNotAcceptable) Error() string {
+	return fmt.Sprintf("the resource %s does not support being converted to a Table", e.resource)
+}
+
+func (e errNotAcceptable) Status() metav1.Status {
+	return metav1.Status{
+		Status:  metav1.StatusFailure,
+		Code:    http.StatusNotAcceptable,
+		Reason:  metav1.StatusReason("NotAcceptable"),
+		Message: e.Error(),
+	}
+}
+
+var swaggerMetadataDescriptions = metav1.ObjectMeta{}.SwaggerDoc()
 
 // Strategy defines the set of hooks and behaviors used by the API server for resource storage operations.
 // It combines create, update, delete, and table conversion strategies, plus a predicate matcher for filtering.
@@ -155,9 +180,52 @@ func (DefaultStrategy) Match(label labels.Selector, field fields.Selector) stora
 func (d DefaultStrategy) ConvertToTable(
 	ctx context.Context, obj runtime.Object, tableOptions runtime.Object) (*metav1.Table, error) {
 	if c, ok := obj.(TableConverter); ok {
+		// Object implements our TableConverter, so let it do the work on it's own.
 		return c.ConvertToTable(ctx, tableOptions)
 	}
-	return d.TableConvertor.ConvertToTable(ctx, obj, tableOptions)
+	// We will do it DefaultStrategy here.
+	var table metav1.Table
+	fn := func(obj runtime.Object) error {
+		m, err := meta.Accessor(obj)
+		if err != nil {
+			gr := schema.GroupResource{}
+			if info, ok := genericapirequest.RequestInfoFrom(ctx); ok {
+				gr = schema.GroupResource{Group: info.APIGroup, Resource: info.Resource}
+			}
+			return errNotAcceptable{resource: gr}
+		}
+		table.Rows = append(table.Rows, metav1.TableRow{
+			Cells:  []interface{}{m.GetName(), m.GetCreationTimestamp().Time.UTC().Format(time.RFC3339)},
+			Object: runtime.RawExtension{Object: obj},
+		})
+		return nil
+	}
+	switch {
+	case meta.IsListType(obj):
+		if err := meta.EachListItem(obj, fn); err != nil {
+			return nil, err
+		}
+	default:
+		if err := fn(obj); err != nil {
+			return nil, err
+		}
+	}
+	if m, err := meta.ListAccessor(obj); err == nil {
+		table.ResourceVersion = m.GetResourceVersion()
+		table.Continue = m.GetContinue()
+		table.RemainingItemCount = m.GetRemainingItemCount()
+	} else {
+		if m, err := meta.CommonAccessor(obj); err == nil {
+			table.ResourceVersion = m.GetResourceVersion()
+		}
+	}
+	if opt, ok := tableOptions.(*metav1.TableOptions); !ok || !opt.NoHeaders {
+		table.ColumnDefinitions = []metav1.TableColumnDefinition{
+			{Name: "Name", Type: "string", Format: "name", Description: swaggerMetadataDescriptions["name"]},
+			{Name: "Created At", Type: "date", Description: swaggerMetadataDescriptions["creationTimestamp"]},
+		}
+	}
+	return &table, nil
 }
 
 // WarningsOnCreate returns any warnings for create operations (default: none).
