@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"go.opendefense.cloud/kit/apiserver/resource"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -154,9 +155,41 @@ func (DefaultStrategy) Match(label labels.Selector, field fields.Selector) stora
 // ConvertToTable returns a Table representation of the object, using TableConverter if implemented.
 func (d DefaultStrategy) ConvertToTable(
 	ctx context.Context, obj runtime.Object, tableOptions runtime.Object) (*metav1.Table, error) {
+
 	if c, ok := obj.(TableConverter); ok {
-		return c.ConvertToTable(ctx, tableOptions)
+		table, err := c.ConvertToTable(ctx, tableOptions)
+		if err != nil {
+			return table, err
+		}
+		if m, err := meta.Accessor(obj); err == nil {
+			table.ResourceVersion = m.GetResourceVersion()
+		}
+		return table, nil
 	}
+
+	if meta.IsListType(obj) && meta.LenList(obj) > 0 { // If it's a list type, let's check if individual objects implement TableConvertor
+		items, err := meta.ExtractList(obj)
+		if err == nil {
+			if _, ok := items[0].(TableConverter); ok {
+				table := &metav1.Table{}
+				for _, item := range items {
+					itemTable, err := item.(TableConverter).ConvertToTable(ctx, tableOptions)
+					if err != nil {
+						return table, err
+					}
+					table.ColumnDefinitions = itemTable.ColumnDefinitions
+					table.Rows = append(table.Rows, itemTable.Rows...)
+				}
+				if m, err := meta.ListAccessor(obj); err == nil {
+					table.ResourceVersion = m.GetResourceVersion()
+					table.Continue = m.GetContinue()
+					table.RemainingItemCount = m.GetRemainingItemCount()
+				}
+				return table, nil
+			}
+		}
+	}
+
 	return d.TableConvertor.ConvertToTable(ctx, obj, tableOptions)
 }
 
