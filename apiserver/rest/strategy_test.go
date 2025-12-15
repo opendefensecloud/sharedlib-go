@@ -69,7 +69,17 @@ func (t *testObj) Canonicalize() { t.Flag = true }
 
 // ConvertToTable implements TableConverter
 func (t *testObj) ConvertToTable(ctx context.Context, _ runtime.Object) (*metav1.Table, error) {
-	return &metav1.Table{Rows: []metav1.TableRow{{}}}, nil
+	return &metav1.Table{
+		ColumnDefinitions: []metav1.TableColumnDefinition{
+			{Name: "Name", Type: "string"},
+			{Name: "Status", Type: "string"},
+		},
+		Rows: []metav1.TableRow{
+			{
+				Cells: []interface{}{t.Name, t.Status},
+			},
+		},
+	}, nil
 }
 
 // testObjList is a minimal list type returned by NewList.
@@ -85,6 +95,27 @@ func (t *testObjList) DeepCopyObject() runtime.Object {
 	}
 	copy := *t
 	return &copy
+}
+
+// testObjListWithConvertor is a list type that implements ConvertToTable
+// with different columns than testObj.
+type testObjListWithConvertor struct {
+	testObjList
+}
+
+// ConvertToTable implements TableConverter for testObjListWithConvertor
+func (t *testObjListWithConvertor) ConvertToTable(ctx context.Context, _ runtime.Object) (*metav1.Table, error) {
+	return &metav1.Table{
+		ColumnDefinitions: []metav1.TableColumnDefinition{
+			{Name: "Count", Type: "integer"},
+			{Name: "Resource", Type: "string"},
+		},
+		Rows: []metav1.TableRow{
+			{
+				Cells: []interface{}{len(t.Items), "testobjs"},
+			},
+		},
+	}, nil
 }
 
 // nameGen implements NameGenerator
@@ -157,14 +188,77 @@ var _ = Describe("DefaultStrategy", func() {
 	})
 
 	It("should delegate Canonicalize and ConvertToTable to object", func() {
-		obj := &testObj{}
+		obj := &testObj{ObjectMeta: metav1.ObjectMeta{Name: "test-obj"}, Status: "ready"}
 		ds := DefaultStrategy{Object: obj}
 		ds.Canonicalize(obj)
 		Expect(obj.Flag).To(BeTrue())
 		tbl, err := ds.ConvertToTable(context.Background(), obj, nil)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(tbl).ToNot(BeNil())
+		Expect(tbl.ColumnDefinitions).To(HaveLen(2))
+		Expect(tbl.ColumnDefinitions[0].Name).To(Equal("Name"))
+		Expect(tbl.ColumnDefinitions[1].Name).To(Equal("Status"))
 		Expect(tbl.Rows).To(HaveLen(1))
+		Expect(tbl.Rows[0].Cells).To(Equal([]interface{}{"test-obj", "ready"}))
+	})
+
+	It("should use testObj's ConvertToTable implementation with DefaultStrategy", func() {
+		obj := &testObj{ObjectMeta: metav1.ObjectMeta{Name: "my-object"}, Status: "active"}
+		ds := NewDefaultStrategy(obj, nil, schema.GroupResource{Group: "arc", Resource: "testobjs"})
+		tbl, err := ds.ConvertToTable(context.Background(), obj, nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(tbl).ToNot(BeNil())
+		Expect(tbl.ColumnDefinitions).To(HaveLen(2))
+		Expect(tbl.ColumnDefinitions[0].Name).To(Equal("Name"))
+		Expect(tbl.ColumnDefinitions[1].Name).To(Equal("Status"))
+		Expect(tbl.Rows).To(HaveLen(1))
+		Expect(tbl.Rows[0].Cells).To(Equal([]interface{}{"my-object", "active"}))
+	})
+
+	It("should use testObj's ConvertToTable for items in testObjList", func() {
+		list := &testObjList{
+			Items: []testObj{
+				{ObjectMeta: metav1.ObjectMeta{Name: "obj1"}, Status: "ready"},
+				{ObjectMeta: metav1.ObjectMeta{Name: "obj2"}, Status: "pending"},
+			},
+		}
+		ds := NewDefaultStrategy(&testObj{}, nil, schema.GroupResource{Group: "arc", Resource: "testobjs"})
+		tbl, err := ds.ConvertToTable(context.Background(), list, nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(tbl).ToNot(BeNil())
+		// Each item should contribute one row, so total 2 rows
+		Expect(tbl.Rows).To(HaveLen(2))
+		// Verify column definitions are present
+		Expect(tbl.ColumnDefinitions).To(HaveLen(2))
+		Expect(tbl.ColumnDefinitions[0].Name).To(Equal("Name"))
+		Expect(tbl.ColumnDefinitions[1].Name).To(Equal("Status"))
+		// Verify row data
+		Expect(tbl.Rows[0].Cells).To(Equal([]interface{}{"obj1", "ready"}))
+		Expect(tbl.Rows[1].Cells).To(Equal([]interface{}{"obj2", "pending"}))
+	})
+
+	It("should use list's ConvertToTable implementation if explicitly implemented", func() {
+		list := &testObjListWithConvertor{
+			testObjList: testObjList{
+				Items: []testObj{
+					{ObjectMeta: metav1.ObjectMeta{Name: "obj1"}, Status: "ready"},
+					{ObjectMeta: metav1.ObjectMeta{Name: "obj2"}, Status: "pending"},
+					{ObjectMeta: metav1.ObjectMeta{Name: "obj3"}, Status: "running"},
+				},
+			},
+		}
+		ds := NewDefaultStrategy(&testObj{}, nil, schema.GroupResource{Group: "arc", Resource: "testobjs"})
+		tbl, err := ds.ConvertToTable(context.Background(), list, nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(tbl).ToNot(BeNil())
+		// Should use list's ConvertToTable, which returns a single row
+		Expect(tbl.Rows).To(HaveLen(1))
+		// Verify column definitions are different from testObj's columns
+		Expect(tbl.ColumnDefinitions).To(HaveLen(2))
+		Expect(tbl.ColumnDefinitions[0].Name).To(Equal("Count"))
+		Expect(tbl.ColumnDefinitions[1].Name).To(Equal("Resource"))
+		// Verify row data shows count and resource type
+		Expect(tbl.Rows[0].Cells).To(Equal([]interface{}{3, "testobjs"}))
 	})
 })
 
