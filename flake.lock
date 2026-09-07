@@ -15,11 +15,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1780499049,
-        "narHash": "sha256-oqS4fc4qgrfP5TFl/IHW39fsERtSWNufQQp0QoDxb/Q=",
+        "lastModified": 1787918634,
+        "narHash": "sha256-d/GY4lc2ssP2ax6GGLaakYkXZcW8XM1IlFO98qd7sXQ=",
         "owner": "opendefensecloud",
         "repo": "dev-kit",
-        "rev": "9fe77282c8260284d4efdb69d19b883e52e9a4d8",
+        "rev": "3ce2ec4d731819f2ddcd5b6d9fba88979bb4c04f",
         "type": "github"
       },
       "original": {
