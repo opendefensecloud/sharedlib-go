@@ -111,24 +111,24 @@ func (DefaultStrategy) Validate(ctx context.Context, obj runtime.Object) field.E
 }
 
 // AllowCreateOnUpdate returns true if the object allows creation via update (PUT), using AllowCreateOnUpdater if present.
-func (d DefaultStrategy) AllowCreateOnUpdate() bool {
+func (d DefaultStrategy) AllowCreateOnUpdate(ctx context.Context) bool {
 	if d.Object == nil {
 		return false
 	}
 	if n, ok := d.Object.(AllowCreateOnUpdater); ok {
-		return n.AllowCreateOnUpdate()
+		return n.AllowCreateOnUpdate(ctx)
 	}
 
 	return false
 }
 
 // AllowUnconditionalUpdate returns true if the object allows unconditional updates, using AllowUnconditionalUpdater if present.
-func (d DefaultStrategy) AllowUnconditionalUpdate() bool {
+func (d DefaultStrategy) AllowUnconditionalUpdate(ctx context.Context) bool {
 	if d.Object == nil {
 		return false
 	}
 	if n, ok := d.Object.(AllowUnconditionalUpdater); ok {
-		return n.AllowUnconditionalUpdate()
+		return n.AllowUnconditionalUpdate(ctx)
 	}
 
 	return false

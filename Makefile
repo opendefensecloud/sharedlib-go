@@ -11,7 +11,7 @@ common.mk:
 
 HACK_DIR ?= $(shell cd hack 2>/dev/null && pwd)
 
-ENVTEST_K8S_VERSION ?= 1.36.1
+ENVTEST_K8S_VERSION ?= 1.37.0
 
 export GOPRIVATE=*.go.opendefense.cloud/kit/
 export GNOSUMDB=*.go.opendefense.cloud/kit/

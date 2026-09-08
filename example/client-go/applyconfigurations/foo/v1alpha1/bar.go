@@ -14,7 +14,7 @@ import (
 //
 // Bar is just an example.
 type BarApplyConfiguration struct {
-	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	v1.TypeMetaApplyConfiguration    `json:""`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
 	Spec                             *BarSpecApplyConfiguration `json:"spec,omitempty"`
 	Status                           *foov1alpha1.BarStatus     `json:"status,omitempty"`

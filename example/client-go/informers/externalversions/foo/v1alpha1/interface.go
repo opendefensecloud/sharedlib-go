@@ -9,9 +9,9 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// Bars returns a BarInformer.
-	Bars() BarInformer
+	Bars() TypedBarInformer
 	// ClusterBars returns a ClusterBarInformer.
-	ClusterBars() ClusterBarInformer
+	ClusterBars() TypedClusterBarInformer
 }
 
 type version struct {
@@ -25,12 +25,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Bars returns a BarInformer.
-func (v *version) Bars() BarInformer {
+// Bars returns a TypedBarInformer.
+func (v *version) Bars() TypedBarInformer {
 	return &barInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// ClusterBars returns a ClusterBarInformer.
-func (v *version) ClusterBars() ClusterBarInformer {
+// ClusterBars returns a TypedClusterBarInformer.
+func (v *version) ClusterBars() TypedClusterBarInformer {
 	return &clusterBarInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

@@ -138,7 +138,7 @@ func Convert_foo_BarList_To_v1alpha1_BarList(in *foo.BarList, out *BarList, s co
 }
 
 func autoConvert_v1alpha1_BarSpec_To_foo_BarSpec(in *BarSpec, out *foo.BarSpec, s conversion.Scope) error {
-	out.Message = in.Message
+	*out = *(*foo.BarSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -148,7 +148,7 @@ func Convert_v1alpha1_BarSpec_To_foo_BarSpec(in *BarSpec, out *foo.BarSpec, s co
 }
 
 func autoConvert_foo_BarSpec_To_v1alpha1_BarSpec(in *foo.BarSpec, out *BarSpec, s conversion.Scope) error {
-	out.Message = in.Message
+	*out = *(*BarSpec)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -158,6 +158,7 @@ func Convert_foo_BarSpec_To_v1alpha1_BarSpec(in *foo.BarSpec, out *BarSpec, s co
 }
 
 func autoConvert_v1alpha1_BarStatus_To_foo_BarStatus(in *BarStatus, out *foo.BarStatus, s conversion.Scope) error {
+	*out = *(*foo.BarStatus)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -167,6 +168,7 @@ func Convert_v1alpha1_BarStatus_To_foo_BarStatus(in *BarStatus, out *foo.BarStat
 }
 
 func autoConvert_foo_BarStatus_To_v1alpha1_BarStatus(in *foo.BarStatus, out *BarStatus, s conversion.Scope) error {
+	*out = *(*BarStatus)(unsafe.Pointer(in))
 	return nil
 }
 

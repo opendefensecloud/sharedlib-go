@@ -18,11 +18,39 @@ import (
 )
 
 // ClusterBarInformer provides access to a shared informer and lister for
-// ClusterBars.
+// ClusterBars. Prefer using the type-safe variant (see [TypedClusterBarInformer]).
 type ClusterBarInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() foov1alpha1.ClusterBarLister
 }
+
+// TypedClusterBarInformer provides access to a shared informer and lister for
+// ClusterBars, including the type-safe TypedInformer variant.
+// It is a superset of ClusterBarInformer.
+type TypedClusterBarInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ClusterBarIndexInformer
+	Lister() foov1alpha1.ClusterBarLister
+}
+
+// ClusterBarIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ClusterBarIndexInformer cache.TypedSharedIndexInformer[*apifoov1alpha1.ClusterBar]
+
+// ClusterBarHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ClusterBar.
+type ClusterBarHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apifoov1alpha1.ClusterBar]
+
+// ClusterBarDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ClusterBar.
+type ClusterBarDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apifoov1alpha1.ClusterBar]
+
+// ClusterBarFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ClusterBar.
+type ClusterBarFilteringHandler = cache.TypedFilteringResourceEventHandler[*apifoov1alpha1.ClusterBar]
+
+// ClusterBarIndexers is a specialization of [cache.TypedIndexers] for ClusterBar.
+type ClusterBarIndexers = cache.TypedIndexers[*apifoov1alpha1.ClusterBar]
+
+// DeletedClusterBar is a specialization of [cache.DeletedObject] for ClusterBar.
+type DeletedClusterBar = cache.DeletedObject[*apifoov1alpha1.ClusterBar]
 
 type clusterBarInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -32,25 +60,49 @@ type clusterBarInformer struct {
 // NewClusterBarInformer constructs a new informer for ClusterBar type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterBarInformer]).
 func NewClusterBarInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewClusterBarInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedClusterBarInformer constructs a new informer for ClusterBar type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterBarInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterBarIndexers) ClusterBarIndexInformer {
+	return NewTypedClusterBarInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredClusterBarInformer constructs a new informer for ClusterBar type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredClusterBarInformer]).
 func NewFilteredClusterBarInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewClusterBarInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedClusterBarInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredClusterBarInformer constructs a new informer for ClusterBar type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredClusterBarInformer(client versioned.Interface, resyncPeriod time.Duration, indexers ClusterBarIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ClusterBarIndexInformer {
+	return NewTypedClusterBarInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewClusterBarInformerWithOptions constructs a new informer for ClusterBar type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterBarInformerWithOptions]).
 func NewClusterBarInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedClusterBarInformerWithOptions(client, options)
+}
+
+// NewTypedClusterBarInformerWithOptions constructs a new informer for ClusterBar type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterBarInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) ClusterBarIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "foo.opendefense.cloud", Version: "v1alpha1", Resource: "clusterbars"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.ClusterBar](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -83,17 +135,57 @@ func NewClusterBarInformerWithOptions(client versioned.Interface, options intern
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *clusterBarInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewClusterBarInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedClusterBarInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *clusterBarInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apifoov1alpha1.ClusterBar{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *clusterBarInformer) TypedInformer() ClusterBarIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.ClusterBar](f.factory.InformerFor(&apifoov1alpha1.ClusterBar{}, f.defaultInformer))
 }
 
 func (f *clusterBarInformer) Lister() foov1alpha1.ClusterBarLister {
 	return foov1alpha1.NewClusterBarLister(f.Informer().GetIndexer())
+}
+
+// ToTypedClusterBarInformer converts an untyped informer into a TypedClusterBarInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterBar. If that is not the case, calling type-safe methods of the returned
+// TypedClusterBarInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedClusterBarInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedClusterBarInformer(informer ClusterBarInformer) TypedClusterBarInformer {
+	if informer, ok := informer.(TypedClusterBarInformer); ok {
+		return informer
+	}
+	return &clusterBarTypedInformerAdapter{informer}
+}
+
+type clusterBarTypedInformerAdapter struct {
+	ClusterBarInformer
+}
+
+func (a *clusterBarTypedInformerAdapter) TypedInformer() ClusterBarIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.ClusterBar](a.Informer())
+}
+
+// ToClusterBarIndexInformer converts an untyped informer into a ClusterBarIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterBar. If that is not the case, calling type-safe methods of the returned
+// ClusterBarIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ClusterBarIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToClusterBarIndexInformer(informer cache.SharedIndexInformer) ClusterBarIndexInformer {
+	if informer, ok := informer.(ClusterBarIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.ClusterBar](informer)
 }

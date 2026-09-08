@@ -8,7 +8,7 @@ common.mk:
 	printf '%s' '$(DEV_KIT_VERSION)' > .common.mk-version
 	touch .common.mk-checked
 
-ENVTEST_K8S_VERSION ?= 1.34.1
+ENVTEST_K8S_VERSION ?= 1.37.0
 
 export GOPRIVATE=*.go.opendefense.cloud/kit
 export GNOSUMDB=*.go.opendefense.cloud/kit
