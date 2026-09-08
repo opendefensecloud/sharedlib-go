@@ -22,7 +22,7 @@ type NameGenerator names.NameGenerator
 // it can be used by objects to override DefaultStrategy behaviour.
 type AllowCreateOnUpdater interface {
 	// AllowCreateOnUpdate returns true if the object can be created by a PUT.
-	AllowCreateOnUpdate() bool
+	AllowCreateOnUpdate(ctx context.Context) bool
 }
 
 // AllowUnconditionalUpdater implements a subset of rest.RESTUpdateStrategy and
@@ -31,7 +31,7 @@ type AllowUnconditionalUpdater interface {
 	// AllowUnconditionalUpdate returns true if the object can be updated
 	// unconditionally (irrespective of the latest resource version), when
 	// there is no resource version specified in the object.
-	AllowUnconditionalUpdate() bool
+	AllowUnconditionalUpdate(ctx context.Context) bool
 }
 
 // Canonicalizer implements a subset of rest.RESTUpdateStrategy/rest.RESTCreateStrategy and

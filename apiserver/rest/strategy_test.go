@@ -139,14 +139,14 @@ type allowCreate struct {
 	testObj
 }
 
-func (a *allowCreate) AllowCreateOnUpdate() bool { return true }
+func (a *allowCreate) AllowCreateOnUpdate(_ context.Context) bool { return true }
 
 // allowUnconditional implements AllowUnconditionalUpdater
 type allowUnconditional struct {
 	testObj
 }
 
-func (a *allowUnconditional) AllowUnconditionalUpdate() bool { return true }
+func (a *allowUnconditional) AllowUnconditionalUpdate(_ context.Context) bool { return true }
 
 var _ = Describe("DefaultStrategy", func() {
 	It("should use NameGenerator for GenerateName", func() {
@@ -184,9 +184,9 @@ var _ = Describe("DefaultStrategy", func() {
 
 	It("should delegate AllowCreateOnUpdate and AllowUnconditionalUpdate", func() {
 		ds1 := DefaultStrategy{Object: &allowCreate{}}
-		Expect(ds1.AllowCreateOnUpdate()).To(BeTrue())
+		Expect(ds1.AllowCreateOnUpdate(context.Background())).To(BeTrue())
 		ds2 := DefaultStrategy{Object: &allowUnconditional{}}
-		Expect(ds2.AllowUnconditionalUpdate()).To(BeTrue())
+		Expect(ds2.AllowUnconditionalUpdate(context.Background())).To(BeTrue())
 	})
 
 	It("should delegate Canonicalize and ConvertToTable to object", func() {

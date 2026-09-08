@@ -18,11 +18,39 @@ import (
 )
 
 // BarInformer provides access to a shared informer and lister for
-// Bars.
+// Bars. Prefer using the type-safe variant (see [TypedBarInformer]).
 type BarInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() foov1alpha1.BarLister
 }
+
+// TypedBarInformer provides access to a shared informer and lister for
+// Bars, including the type-safe TypedInformer variant.
+// It is a superset of BarInformer.
+type TypedBarInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() BarIndexInformer
+	Lister() foov1alpha1.BarLister
+}
+
+// BarIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type BarIndexInformer cache.TypedSharedIndexInformer[*apifoov1alpha1.Bar]
+
+// BarHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for Bar.
+type BarHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apifoov1alpha1.Bar]
+
+// BarDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for Bar.
+type BarDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apifoov1alpha1.Bar]
+
+// BarFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for Bar.
+type BarFilteringHandler = cache.TypedFilteringResourceEventHandler[*apifoov1alpha1.Bar]
+
+// BarIndexers is a specialization of [cache.TypedIndexers] for Bar.
+type BarIndexers = cache.TypedIndexers[*apifoov1alpha1.Bar]
+
+// DeletedBar is a specialization of [cache.DeletedObject] for Bar.
+type DeletedBar = cache.DeletedObject[*apifoov1alpha1.Bar]
 
 type barInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -33,25 +61,49 @@ type barInformer struct {
 // NewBarInformer constructs a new informer for Bar type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedBarInformer]).
 func NewBarInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewBarInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedBarInformer constructs a new informer for Bar type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedBarInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers BarIndexers) BarIndexInformer {
+	return NewTypedBarInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredBarInformer constructs a new informer for Bar type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredBarInformer]).
 func NewFilteredBarInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewBarInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedBarInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredBarInformer constructs a new informer for Bar type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredBarInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers BarIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) BarIndexInformer {
+	return NewTypedBarInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewBarInformerWithOptions constructs a new informer for Bar type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedBarInformerWithOptions]).
 func NewBarInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedBarInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedBarInformerWithOptions constructs a new informer for Bar type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedBarInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) BarIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "foo.opendefense.cloud", Version: "v1alpha1", Resource: "bars"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.Bar](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -84,17 +136,57 @@ func NewBarInformerWithOptions(client versioned.Interface, namespace string, opt
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *barInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewBarInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedBarInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *barInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apifoov1alpha1.Bar{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *barInformer) TypedInformer() BarIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.Bar](f.factory.InformerFor(&apifoov1alpha1.Bar{}, f.defaultInformer))
 }
 
 func (f *barInformer) Lister() foov1alpha1.BarLister {
 	return foov1alpha1.NewBarLister(f.Informer().GetIndexer())
+}
+
+// ToTypedBarInformer converts an untyped informer into a TypedBarInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Bar. If that is not the case, calling type-safe methods of the returned
+// TypedBarInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedBarInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedBarInformer(informer BarInformer) TypedBarInformer {
+	if informer, ok := informer.(TypedBarInformer); ok {
+		return informer
+	}
+	return &barTypedInformerAdapter{informer}
+}
+
+type barTypedInformerAdapter struct {
+	BarInformer
+}
+
+func (a *barTypedInformerAdapter) TypedInformer() BarIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.Bar](a.Informer())
+}
+
+// ToBarIndexInformer converts an untyped informer into a BarIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *Bar. If that is not the case, calling type-safe methods of the returned
+// BarIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a BarIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToBarIndexInformer(informer cache.SharedIndexInformer) BarIndexInformer {
+	if informer, ok := informer.(BarIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apifoov1alpha1.Bar](informer)
 }
